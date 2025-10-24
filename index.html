@@ -33,6 +33,7 @@
       const flip = true;
       webcam = new tmPose.Webcam(size, size, flip);
       await webcam.setup();
+      await new Promise(r => setTimeout(r, 500));
       await webcam.play();
       window.requestAnimationFrame(loop);
 
@@ -66,4 +67,5 @@
   </script>
 </body>
 </html>
+
 

@@ -2,14 +2,35 @@
 <html>
 <head>
   <title>Body Control Maze</title>
-  <!-- Versi TFJS yang paling stabil untuk Teachable Machine Pose -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0/dist/tf.min.js"></script>
-  <!-- Teachable Machine pose -->
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+  <!-- Gunakan versi TFJS yang direkomendasikan Teachable Machine atau yang terbaru -->
+  <!-- Coba versi lengkap atau pecah menjadi core, converter, dan webgl backend -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <!-- Teachable Machine Pose - gunakan '@latest' untuk versi terbaru -->
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@latest"></script>
 
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+    #webcam-container {
+      margin: 20px auto;
+      width: 400px; /* Sesuaikan dengan ukuran webcam */
+      height: 400px;
+      border: 1px solid #ccc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* Pastikan gambar webcam mengisi container */
+    }
+  </style>
 </head>
-
-
 
 <body>
   <h2>Gerakin badanmu buat kontrol karakter!</h2>
@@ -17,55 +38,107 @@
   <div id="webcam-container"></div>
   <div id="label-container"></div>
 
-  <!-- script HARUS di bawah semua elemen -->
   <script type="text/javascript">
+    // Ganti dengan URL modelmu
     const URL = "https://teachablemachine.withgoogle.com/models/a-DGyIRA9/";
     let model, webcam, labelContainer, maxPredictions;
+    let isPredicting = false; // Flag untuk mengontrol prediksi
 
     async function init() {
+      if (isPredicting) return; // Mencegah inisialisasi ganda
+      isPredicting = true;
+
       const modelURL = URL + "model.json";
       const metadataURL = URL + "metadata.json";
 
-      model = await tmPose.load(modelURL, metadataURL);
-      maxPredictions = model.getTotalClasses();
+      // Muat model Teachable Machine Pose
+      try {
+        model = await tmPose.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+      } catch (error) {
+        console.error("Gagal memuat model:", error);
+        alert("Gagal memuat model. Pastikan URL model sudah benar dan bisa diakses.");
+        isPredicting = false;
+        return;
+      }
 
+      // Konfigurasi webcam
       const size = 400;
-      const flip = true;
+      const flip = true; // true untuk cermin
       webcam = new tmPose.Webcam(size, size, flip);
-      await webcam.setup();
-      await new Promise(r => setTimeout(r, 500));
-      await webcam.play();
-      window.requestAnimationFrame(loop);
 
+      try {
+        await webcam.setup(); // Meminta akses kamera
+        await webcam.play(); // Memulai streaming kamera
+        document.getElementById("start-btn").style.display = 'none'; // Sembunyikan tombol setelah mulai
+      } catch (error) {
+        console.error("Gagal setup webcam:", error);
+        alert("Gagal mengakses kamera. Pastikan kamera terhubung dan izinkan akses browser.");
+        isPredicting = false;
+        return;
+      }
+
+      // Tambahkan canvas webcam ke container
+      document.getElementById("webcam-container").innerHTML = ''; // Kosongkan dulu
       document.getElementById("webcam-container").appendChild(webcam.canvas);
 
+      // Siapkan container label
       labelContainer = document.getElementById("label-container");
+      labelContainer.innerHTML = ''; // Kosongkan dulu
       for (let i = 0; i < maxPredictions; i++) {
         labelContainer.appendChild(document.createElement("div"));
       }
-    }
 
-    async function loop() {
-      webcam.update();
-      await predict();
       window.requestAnimationFrame(loop);
     }
 
-    async function predict() {
-      const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
-      const prediction = await model.predict(posenetOutput);
-
-      for (let i = 0; i < maxPredictions; i++) {
-        const classPrediction =
-          prediction[i].className + ": " + prediction[i].probability.toFixed(2);
-        labelContainer.childNodes[i].innerHTML = classPrediction;
+    async function loop() {
+      webcam.update(); // Perbarui frame webcam
+      await predict(); // Lakukan prediksi
+      if (isPredicting) {
+        window.requestAnimationFrame(loop);
       }
     }
 
-    // Pastikan event listener dipasang setelah fungsi didefinisikan
+    async function predict() {
+      // Pastikan webcam.canvas ada dan bukan null sebelum digunakan
+      if (!webcam || !webcam.canvas) {
+        console.warn("Webcam canvas tidak tersedia. Melewati prediksi.");
+        return;
+      }
+
+      try {
+        const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+        const prediction = await model.predict(posenetOutput);
+
+        for (let i = 0; i < maxPredictions; i++) {
+          const classPrediction =
+            prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+          labelContainer.childNodes[i].innerHTML = classPrediction;
+        }
+      } catch (error) {
+        console.error("Gagal melakukan prediksi:", error);
+        // Hentikan prediksi jika ada error fatal
+        isPredicting = false;
+        alert("Terjadi kesalahan saat memproses pose. Memprediksi dihentikan.");
+      }
+    }
+
+    // Event listener untuk tombol "Mulai Kamera"
     document.getElementById("start-btn").addEventListener("click", init);
+
+    // Opsional: tambahkan tombol untuk menghentikan kamera
+    // Anda bisa menambahkan tombol lain dan fungsi stop
+    // function stopWebcam() {
+    //   if (webcam) {
+    //     webcam.stop();
+    //     isPredicting = false;
+    //     document.getElementById("start-btn").style.display = 'block';
+    //     document.getElementById("webcam-container").innerHTML = '';
+    //     document.getElementById("label-container").innerHTML = '';
+    //   }
+    // }
+    // document.getElementById("stop-btn").addEventListener("click", stopWebcam);
   </script>
 </body>
 </html>
-
-

@@ -2,10 +2,12 @@
 <html>
 <head>
   <title>Body Control Maze</title>
-  <!-- Versi TFJS yang kompatibel dengan Teachable Machine Pose -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
-  <!-- Teachable Machine Pose versi terbaru -->
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8.3/dist/teachablemachine-pose.min.js"></script>
+ <!-- Gunakan versi TensorFlow.js yang kompatibel -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.8.6/dist/tf.min.js"></script>
+
+<!-- Teachable Machine Pose -->
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+
 </head>
 <body>
   <h2>Gerakin badanmu buat kontrol karakter!</h2>
@@ -30,6 +32,7 @@
       const flip = true;
       webcam = new tmPose.Webcam(size, size, flip);
       await webcam.setup(); // Setup akses kamera
+      await new Promise(r => setTimeout(r, 500)); // tunggu 0.5 detik
       await webcam.play(); // Mulai kamera
       window.requestAnimationFrame(loop); // Mulai loop
 
@@ -68,3 +71,4 @@
   </script>
 </body>
 </html>
+
